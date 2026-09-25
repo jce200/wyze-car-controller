@@ -1,0 +1,88 @@
+#!/bin/sh
+# Start the Wyze Car fail-safe loop after normal Thingino services.
+
+DAEMON=/opt/wyze-car/car-daemon.sh
+STATE_DIR=/tmp/wyze-car-controller
+
+is_daemon_pid() {
+    case "$1" in ''|*[!0-9]*) return 1 ;; esac
+    [ -r "/proc/$1/cmdline" ] || return 1
+    tr '\000' ' ' < "/proc/$1/cmdline" | grep -F -q "$DAEMON"
+}
+
+running_pid() {
+    PID=0
+    [ -f "$STATE_DIR/pid" ] && read -r PID < "$STATE_DIR/pid"
+    case "$PID" in ''|*[!0-9]*) PID=0 ;; esac
+}
+
+heartbeat_fresh() {
+    [ -f "$STATE_DIR/heartbeat" ] || return 1
+    read -r heartbeat < "$STATE_DIR/heartbeat"
+    case "$heartbeat" in ''|*[!0-9]*) return 1 ;; esac
+    read -r uptime ignored < /proc/uptime || return 1
+    seconds=${uptime%%.*}
+    hundredths=${uptime#*.}
+    hundredths=${hundredths#0}
+    [ -n "$hundredths" ] || hundredths=0
+    now=$((seconds * 100 + hundredths))
+    age=$((now - heartbeat))
+    [ "$age" -ge 0 ] && [ "$age" -lt 100 ]
+}
+
+case "$1" in
+    start)
+        [ -x "$DAEMON" ] || exit 1
+        mkdir -p "$STATE_DIR" || exit 1
+        running_pid
+        if is_daemon_pid "$PID"; then
+            heartbeat_fresh && exit 0
+            printf 'Wyze Car controller is running but not responding\n' >&2
+            exit 1
+        fi
+        if [ -d "$STATE_DIR/daemon.lock" ]; then
+            printf 'Stale Wyze Car lock. Verify no car-daemon.sh process, then reboot the camera.\n' >&2
+            exit 1
+        fi
+        "$DAEMON" > /tmp/wyze-car-controller.log 2>&1 &
+        started_pid=$!
+        attempt=0
+        while [ "$attempt" -lt 10 ]; do
+            running_pid
+            if [ "$PID" = "$started_pid" ] && is_daemon_pid "$PID" && heartbeat_fresh; then
+                exit 0
+            fi
+            kill -0 "$started_pid" 2>/dev/null || break
+            sleep 0.1
+            attempt=$((attempt + 1))
+        done
+        printf 'Wyze Car controller failed to start; see /tmp/wyze-car-controller.log\n' >&2
+        exit 1
+        ;;
+    stop)
+        running_pid
+        if is_daemon_pid "$PID"; then
+            kill "$PID" 2>/dev/null || :
+            attempt=0
+            while is_daemon_pid "$PID" && [ "$attempt" -lt 20 ]; do
+                sleep 0.1
+                attempt=$((attempt + 1))
+            done
+            if is_daemon_pid "$PID"; then
+                printf 'Wyze Car controller did not stop\n' >&2
+                exit 1
+            fi
+        elif [ -d "$STATE_DIR/daemon.lock" ]; then
+            printf 'Wyze Car lock exists but daemon identity cannot be verified; reboot the camera.\n' >&2
+            exit 1
+        fi
+        ;;
+    restart)
+        "$0" stop || exit 1
+        "$0" start
+        ;;
+    *)
+        printf 'Usage: %s {start|stop|restart}\n' "$0" >&2
+        exit 1
+        ;;
+esac

@@ -1,0 +1,4 @@
+.playwright-cli/
+__pycache__/
+dist/
+preview/
