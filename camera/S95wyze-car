@@ -64,12 +64,14 @@ case "$1" in
         if is_daemon_pid "$PID"; then
             kill "$PID" 2>/dev/null || :
             attempt=0
-            while is_daemon_pid "$PID" && [ "$attempt" -lt 20 ]; do
+            while is_daemon_pid "$PID" && [ "$attempt" -lt 50 ]; do
                 sleep 0.1
                 attempt=$((attempt + 1))
             done
             if is_daemon_pid "$PID"; then
-                printf 'Wyze Car controller did not stop\n' >&2
+                process_state=$(sed -n 's/^State:[[:space:]]*//p' "/proc/$PID/status" 2>/dev/null)
+                [ -n "$process_state" ] || process_state=unknown
+                printf 'Wyze Car controller did not stop (PID %s; process state: %s). Reboot the camera before retrying installation.\n' "$PID" "$process_state" >&2
                 exit 1
             fi
         elif [ -d "$STATE_DIR/daemon.lock" ]; then
