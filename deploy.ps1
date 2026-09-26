@@ -15,7 +15,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'SSH connection to the camera failed.' }
 
     & scp.exe -O 'camera/car-daemon.sh' 'camera/car.cgi' 'camera/S95wyze-car' `
-        'camera/install-camera.sh' 'web/index.html' 'web/car.css' 'web/car.js' `
+        'camera/install-camera.sh' 'web/index.html' 'web/car.css' 'web/car.js' 'web/car-mark.svg' `
         "${targetHost}:/tmp/wyze-car-deploy/"
     if ($LASTEXITCODE -ne 0) { throw 'Copying files to the camera failed.' }
 

@@ -22,8 +22,9 @@ and test it in a clear, controlled area.
 ## Features
 
 - Live video from Thingino's MJPEG stream.
-- A light interface using Wyze's website mint (`#1DF0BB`) and purple
-  (`#4E2FD2`), with readable dark text and a distinct red emergency stop.
+- A black interface with Wyze mint (`#1DF0BB`), purple accents, and an original
+  camera-rover logo. Light text and a distinct red emergency stop keep controls
+  readable; the local SVG logo adds less than 1 KB and also serves as the favicon.
 - Touch joystick, keyboard (WASD or arrow keys), and gamepad controls when the
   browser exposes a gamepad.
 - Slow/fast speed selection, headlights, and a prominent emergency stop button.
