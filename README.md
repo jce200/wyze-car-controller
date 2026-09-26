@@ -25,6 +25,8 @@ and test it in a clear, controlled area.
 - A black interface with Wyze mint (`#1DF0BB`), purple accents, and an original
   camera-rover logo. Light text and a distinct red emergency stop keep controls
   readable; the local SVG logo adds less than 1 KB and also serves as the favicon.
+- Aptos typography when installed on the viewing device, with system sans-serif
+  fallbacks. The camera does not need to download or host font files.
 - Touch joystick, keyboard (WASD or arrow keys), and gamepad controls when the
   browser exposes a gamepad.
 - Slow/fast speed selection, headlights, and a prominent emergency stop button.

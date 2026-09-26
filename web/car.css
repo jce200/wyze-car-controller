@@ -1,6 +1,6 @@
 /* Wyze website palette: https://www.wyze.com/ (2026-09-26). */
 :root {
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Aptos", "Segoe UI", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   color: #edf4f0;
   background: #000000;
   font-synthesis: none;
