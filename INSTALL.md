@@ -58,12 +58,22 @@ cd .\wyze-car-controller-v0.1.0
 .\deploy.ps1 -Camera 192.168.1.123
 ```
 
-If PowerShell blocks this downloaded script, verify the checksum and inspect
-`deploy.ps1`, then unblock that file and run it again:
+If PowerShell marks this downloaded script as untrusted, verify the checksum
+and inspect `deploy.ps1`, then unblock that file and run it again:
 
 ```powershell
 Unblock-File .\deploy.ps1
 ```
+
+If PowerShell instead says that running scripts is disabled, after verifying
+and reviewing the script you can allow it for this one PowerShell process:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy.ps1 -Camera 192.168.1.123
+```
+
+This does not change your saved execution policy. An organization-managed
+policy may still prevent execution.
 
 macOS/Linux:
 

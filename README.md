@@ -215,6 +215,7 @@ The standard-library builder reads a fixed list of files from Git, verifies
 both archives against those committed files, and writes ZIP, tar.gz,
 `INSTALL.md`, and `SHA256SUMS`. Each archive includes `VERSION` and
 `BUILDINFO.json` with the source commit. It excludes local previews and old logos.
+
 The serial frames are based on Thingino's
 [`car_control`](https://github.com/themactep/thingino-firmware/blob/stable/package/wyze-accessory/files/car_control).
 The video and authentication use Thingino's existing
