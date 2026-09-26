@@ -6,6 +6,8 @@ require_auth
 set -f
 
 STATE_DIR=${CAR_STATE_DIR:-/tmp/wyze-car-controller}
+DRIVE_LOCK=$STATE_DIR/drive.lock
+drive_lock_held=0
 DEVICE=${CAR_DEVICE:-/dev/ttyUSB0}
 TEST_MODE=${CAR_TEST_MODE:-0}
 umask 077
@@ -20,6 +22,33 @@ reply() {
 }
 
 bad_request() { reply '400 Bad Request' '{"ok":false,"message":"Invalid control request"}'; }
+
+release_drive_lock() {
+    # BusyBox ash cleanup must not use builtin read after a signal trap.
+    trap - EXIT HUP INT TERM
+    if [ "$drive_lock_held" = 1 ]; then
+        rm -rf "$DRIVE_LOCK"
+        drive_lock_held=0
+    fi
+}
+trap release_drive_lock EXIT
+trap 'exit 1' HUP INT TERM
+
+acquire_drive_lock() {
+    attempts=0
+    while ! mkdir "$DRIVE_LOCK" 2>/dev/null; do
+        attempts=$((attempts + 1))
+        [ "$attempts" -lt 20 ] || return 1
+        sleep 0.01
+    done
+    drive_lock_held=1
+}
+
+valid_sequence() {
+    # Canonical positive decimal; bounded for 32-bit camera shell arithmetic.
+    case "$1" in ''|0*|*[!0-9]*) return 1 ;; esac
+    [ "${#1}" -le 9 ]
+}
 
 ticks_now() {
     read -r uptime ignored < /proc/uptime || return 1
@@ -113,10 +142,10 @@ case "$REQUEST_METHOD" in
             fi
         fi
 
-        drive_stamp=0 drive_token='' steer=0 throttle=0 speed=slow
+        drive_stamp=0 drive_token='' steer=0 throttle=0 speed=slow drive_seq=0
         session='none' session_epoch='boot' stop_epoch='boot'
         if [ -f "$STATE_DIR/drive" ]; then
-            read -r drive_stamp drive_token steer throttle speed < "$STATE_DIR/drive"
+            read -r drive_stamp drive_token steer throttle speed drive_seq < "$STATE_DIR/drive"
         fi
         [ -f "$STATE_DIR/session" ] && read -r session session_epoch < "$STATE_DIR/session"
         [ -f "$STATE_DIR/global-stop" ] && read -r stop_epoch < "$STATE_DIR/global-stop"
@@ -149,7 +178,7 @@ case "$REQUEST_METHOD" in
         case "$CONTENT_LENGTH" in ''|*[!0-9]*) bad_request ;; esac
         [ "$CONTENT_LENGTH" -gt 0 ] && [ "$CONTENT_LENGTH" -le 160 ] || bad_request
         body=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null) || bad_request
-        action='' steer='' throttle='' speed='' on='' token=''
+        action='' steer='' throttle='' speed='' on='' token='' seq=''
         previous_ifs=$IFS
         IFS='&'
         for field in $body; do
@@ -160,6 +189,7 @@ case "$REQUEST_METHOD" in
                 speed=*) [ -z "$speed" ] || bad_request; speed=${field#speed=} ;;
                 on=*) [ -z "$on" ] || bad_request; on=${field#on=} ;;
                 token=*) [ -z "$token" ] || bad_request; token=${field#token=} ;;
+                seq=*) [ -z "$seq" ] || bad_request; seq=${field#seq=} ;;
                 *) bad_request ;;
             esac
         done
@@ -167,7 +197,7 @@ case "$REQUEST_METHOD" in
 
         case "$action" in
             arm)
-                [ -z "$steer$throttle$speed$on$token" ] || bad_request
+                [ -z "$steer$throttle$speed$on$token$seq" ] || bad_request
                 controller_connected || reply '503 Service Unavailable' '{"ok":false,"message":"Wyze Car or controller unavailable"}'
                 random_token || reply '500 Internal Server Error' '{"ok":false,"message":"Session token unavailable"}'
                 token=$RANDOM_TOKEN
@@ -179,23 +209,37 @@ case "$REQUEST_METHOD" in
                 ;;
             drive)
                 [ -z "$on" ] || bad_request
+                [ -n "$seq" ] || reply '400 Bad Request' '{"ok":false,"message":"Missing command sequence; refresh the controller page"}'
+                valid_sequence "$seq" || bad_request
                 valid_token || bad_request
                 case "$steer" in -1|0|1) ;; *) bad_request ;; esac
                 case "$throttle" in -1|0|1) ;; *) bad_request ;; esac
                 case "$speed" in slow|fast) ;; *) bad_request ;; esac
                 controller_connected || reply '503 Service Unavailable' '{"ok":false,"message":"Wyze Car or controller unavailable"}'
+                # A release can overtake an outstanding movement request.
+                # Serialize sequence comparison and replacement, never replay
+                # an older command or refresh the watchdog for a duplicate.
+                acquire_drive_lock || reply '503 Service Unavailable' '{"ok":false,"message":"Controller command is busy"}'
                 session='none' session_epoch='boot' stop_epoch='boot'
                 [ -f "$STATE_DIR/session" ] && read -r session session_epoch < "$STATE_DIR/session"
                 [ -f "$STATE_DIR/global-stop" ] && read -r stop_epoch < "$STATE_DIR/global-stop"
                 if [ "$token" != "$session" ] || [ "$session_epoch" != "$stop_epoch" ]; then
                     reply '409 Conflict' '{"ok":false,"message":"Control session ended"}'
                 fi
-                write_state drive "$NOW $token $steer $throttle $speed" ||
+                previous_token='' previous_seq=0
+                if [ -f "$STATE_DIR/drive" ]; then
+                    read -r previous_stamp previous_token previous_steer previous_throttle previous_speed previous_seq < "$STATE_DIR/drive"
+                fi
+                if [ "$previous_token" = "$token" ] && valid_sequence "$previous_seq" &&
+                   [ "$seq" -le "$previous_seq" ]; then
+                    reply '200 OK' '{"ok":true,"ignored":true}'
+                fi
+                write_state drive "$NOW $token $steer $throttle $speed $seq" ||
                     reply '500 Internal Server Error' '{"ok":false,"message":"Could not save drive command"}'
                 reply '200 OK' '{"ok":true}'
                 ;;
             stop)
-                [ -z "$steer$throttle$speed$on" ] || bad_request
+                [ -z "$steer$throttle$speed$on$seq" ] || bad_request
                 [ -z "$token" ] || valid_token || bad_request
                 random_token || reply '500 Internal Server Error' '{"ok":false,"message":"Stop token unavailable"}'
                 write_state global-stop "$RANDOM_TOKEN" ||
@@ -203,7 +247,7 @@ case "$REQUEST_METHOD" in
                 reply '200 OK' '{"ok":true}'
                 ;;
             lights)
-                [ -z "$steer$throttle$speed$token" ] || bad_request
+                [ -z "$steer$throttle$speed$token$seq" ] || bad_request
                 case "$on" in 0|1) ;; *) bad_request ;; esac
                 controller_connected || reply '503 Service Unavailable' '{"ok":false,"message":"Wyze Car or controller unavailable"}'
                 write_state lights "$NOW $on" ||

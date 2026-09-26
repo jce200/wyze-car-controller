@@ -149,25 +149,25 @@ class ControllerTests(unittest.TestCase):
         self.assertIn("200 OK", head, (head, data, self.debug_state()))
         token = data["token"]
         self.assertEqual(len(token), 64)
-        head, data = self.request("POST", f"action=drive&steer=0&throttle=1&speed=slow&token={token}")
+        head, data = self.request("POST", f"action=drive&seq=1&steer=0&throttle=1&speed=slow&token={token}")
         self.assertTrue(data["ok"])
         forward = "aa5543062980ca0002bb"
         stopped = "aa554306298080000271"
         self.wait_for(lambda: self.device.read_bytes().hex() == forward)
         self.wait_for(lambda: self.device.read_bytes().hex() == stopped, timeout=1.2)
 
-        self.request("POST", f"action=drive&steer=-1&throttle=1&speed=fast&token={token}")
+        self.request("POST", f"action=drive&seq=2&steer=-1&throttle=1&speed=fast&token={token}")
         self.wait_for(lambda: self.device.read_bytes().hex() == "aa5543062976e30002ca")
         self.request("POST", f"action=stop&token={token}")
         self.wait_for(lambda: self.device.read_bytes().hex() == stopped)
-        head, _ = self.request("POST", f"action=drive&steer=0&throttle=1&speed=fast&token={token}")
+        head, _ = self.request("POST", f"action=drive&seq=3&steer=0&throttle=1&speed=fast&token={token}")
         self.assertIn("409 Conflict", head)
         second_reply = self.request("POST", "action=arm")
         self.assertIn("token", second_reply[1], (second_reply, self.request("GET", query="action=status"), self.debug_state()))
         second_token = second_reply[1]["token"]
         self.assertNotEqual(token, second_token)
         self.request("POST", f"action=stop&token={token}")
-        head, response_data = self.request("POST", f"action=drive&steer=0&throttle=1&speed=slow&token={second_token}")
+        head, response_data = self.request("POST", f"action=drive&seq=4&steer=0&throttle=1&speed=slow&token={second_token}")
         self.assertIn("409 Conflict", head, (head, response_data, self.debug_state()))
         self.wait_for(lambda: self.device.read_bytes().hex() == stopped)
 
@@ -175,7 +175,7 @@ class ControllerTests(unittest.TestCase):
         self.assertIn("token", third_reply[1], (third_reply, self.request("GET", query="action=status"), self.debug_state()))
         third_token = third_reply[1]["token"]
         self.request("POST", "action=stop")
-        head, _ = self.request("POST", f"action=drive&steer=0&throttle=1&speed=slow&token={third_token}")
+        head, _ = self.request("POST", f"action=drive&seq=5&steer=0&throttle=1&speed=slow&token={third_token}")
         self.assertIn("409 Conflict", head)
 
     def test_bad_requests_never_write_a_drive(self):
@@ -184,7 +184,7 @@ class ControllerTests(unittest.TestCase):
         arm_reply = self.request("POST", "action=arm")
         self.assertIn("token", arm_reply[1], arm_reply)
         token = arm_reply[1]["token"]
-        head, _ = self.request("POST", f"action=drive&steer=2&throttle=1&speed=fast&token={token}")
+        head, _ = self.request("POST", f"action=drive&seq=6&steer=2&throttle=1&speed=fast&token={token}")
         self.assertIn("400 Bad Request", head)
         head, _ = self.request("GET", query="action=drive")
         self.assertIn("400 Bad Request", head)
@@ -196,13 +196,13 @@ class ControllerTests(unittest.TestCase):
         head, data = self.request("POST", "action=arm", header=False, content_type=mime)
         self.assertIn("200 OK", head, data)
         token = data["token"]
-        head, data = self.request("POST", f"action=drive&steer=0&throttle=0&speed=slow&token={token}",
+        head, data = self.request("POST", f"action=drive&seq=7&steer=0&throttle=0&speed=slow&token={token}",
                                   header=False, content_type=mime)
         self.assertIn("200 OK", head, data)
         head, data = self.request("POST", f"action=stop&token={token}",
                                   header=False, content_type=mime)
         self.assertIn("200 OK", head, data)
-        head, _ = self.request("POST", f"action=drive&steer=0&throttle=1&speed=slow&token={token}",
+        head, _ = self.request("POST", f"action=drive&seq=8&steer=0&throttle=1&speed=slow&token={token}",
                                header=False, content_type=mime)
         self.assertIn("409 Conflict", head)
 

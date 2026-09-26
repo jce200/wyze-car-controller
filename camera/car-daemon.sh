@@ -113,9 +113,9 @@ while :; do
             last_lights=''
         fi
 
-        drive_stamp=0 drive_token='' steer=0 throttle=0 speed=slow
+        drive_stamp=0 drive_token='' steer=0 throttle=0 speed=slow drive_seq=0
         session='none' session_epoch='boot' stop_epoch='boot'
-        [ -f "$STATE_DIR/drive" ] && read -r drive_stamp drive_token steer throttle speed < "$STATE_DIR/drive"
+        [ -f "$STATE_DIR/drive" ] && read -r drive_stamp drive_token steer throttle speed drive_seq < "$STATE_DIR/drive"
         [ -f "$STATE_DIR/session" ] && read -r session session_epoch < "$STATE_DIR/session"
         [ -f "$STATE_DIR/global-stop" ] && read -r stop_epoch < "$STATE_DIR/global-stop"
         case "$drive_stamp" in ''|*[!0-9]*) drive_stamp=0 ;; esac

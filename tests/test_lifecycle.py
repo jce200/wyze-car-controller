@@ -57,7 +57,7 @@ class LifecycleTests(unittest.TestCase):
         (self.state / "session").write_text(f"{token} boot\n", newline="\n")
         self.shell(
             'read -r stamp < "$CAR_STATE_DIR/heartbeat"; '
-            f'printf "%s {token} 0 1 slow\\n" "$stamp" > "$CAR_STATE_DIR/drive"'
+            f'printf "%s {token} 0 1 slow 1\\n" "$stamp" > "$CAR_STATE_DIR/drive"'
         )
         self.wait_for(lambda: self.device.read_bytes().hex() == "aa5543062980ca0002bb")
 

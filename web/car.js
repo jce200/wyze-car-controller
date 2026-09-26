@@ -43,7 +43,10 @@
   let pointerVector = { steer: 0, throttle: 0 };
   let keys = new Set();
   let driveInFlight = false;
+  let neutralInFlight = false;
   let driveQueued = false;
+  let driveSequence = 0;
+  let acknowledgedSequence = 0;
   let lastVector = { steer: 0, throttle: 0 };
   let statusInFlight = false;
   let videoRetryTimer = null;
@@ -97,6 +100,8 @@
     el.armLabel.textContent = value ? "Stop control" : "Start control";
     updateAvailability();
     if (value) {
+      driveSequence = 0;
+      acknowledgedSequence = 0;
       setDriveState("Ready to drive", true);
     } else {
       keys.clear();
@@ -255,15 +260,31 @@
 
   async function sendDrive(force = false) {
     if (!armed || !connected || !controlToken) return;
-    if (driveInFlight) { if (force) driveQueued = true; return; }
     const { steer, throttle } = currentVector();
-    if (!force && !steer && !throttle) return;
+    const neutral = !steer && !throttle;
+    if (!force && neutral) return;
+    // Release has its own request slot: never wait for a motion response to stop.
+    // Other input changes coalesce into the current vector, with at most two
+    // requests outstanding. Camera-side sequence ordering rejects late motion.
+    if (neutralInFlight || (!neutral && driveInFlight)) {
+      if (force) driveQueued = true;
+      return;
+    }
+    if (driveSequence >= 999999999) {
+      disarm(true);
+      setDriveError("Start a new control session");
+      return;
+    }
     const token = controlToken;
-    driveInFlight = true;
+    const seq = ++driveSequence;
+    if (neutral) neutralInFlight = true;
+    else driveInFlight = true;
     try {
-      await apiPost({ action: "drive", token, steer: String(steer), throttle: String(throttle), speed });
+      await apiPost({ action: "drive", token, steer: String(steer), throttle: String(throttle), speed, seq: String(seq) });
+      if (token === controlToken) acknowledgedSequence = Math.max(acknowledgedSequence, seq);
     } catch (error) {
-      if (token === controlToken) {
+      // A confirmed newer command already superseded this request on the camera.
+      if (token === controlToken && seq > acknowledgedSequence) {
         if (error.status === 409) {
           disarm(false);
           setDriveError(error.message === "HTTP 409" ? "Drive session expired" : error.message || "Drive session expired");
@@ -274,8 +295,12 @@
         }
       }
     } finally {
-      driveInFlight = false;
-      if (driveQueued) { driveQueued = false; void sendDrive(true); }
+      if (neutral) neutralInFlight = false;
+      else driveInFlight = false;
+      if (driveQueued && !driveInFlight && !neutralInFlight) {
+        driveQueued = false;
+        void sendDrive(true);
+      }
     }
   }
 

@@ -194,3 +194,159 @@ test("an explicit Stop control remains a normal stop", async () => {
   assert.equal(h.state(), "Not started");
   assert.equal(h.requests.filter((r) => r.action === "stop").length, 1);
 });
+
+const driveFields = (h) => h.requests.filter((r) => r.action === "drive")
+  .map((r) => Object.fromEntries(new URLSearchParams(r.body)));
+const ok = { status: 200, body: { ok: true } };
+
+test("arrow release sends neutral before a delayed motion response, without repeat backlog", async () => {
+  const h = await harness();
+  await h.click();
+  let finishMotion;
+  h.reply("drive", new Promise((resolve) => { finishMotion = resolve; }));
+  await h.document.emit("keydown", { key: "ArrowUp" });
+  for (let i = 0; i < 30; i++) {
+    await h.document.emit("keydown", { key: "ArrowUp", repeat: true });
+    await h.tick(120);
+  }
+  assert.equal(driveFields(h).length, 1, "holding the key does not build a request queue");
+  await h.document.emit("keyup", { key: "ArrowUp" });
+  assert.deepEqual(driveFields(h).map(({ throttle, seq }) => [throttle, seq]), [["1", "1"], ["0", "2"]]);
+  assert.equal(h.state(), "Ready to drive");
+  finishMotion(ok);
+  await flush();
+  await h.tick(120);
+  assert.equal(driveFields(h).length, 2, "a late motion response must not replay movement");
+});
+
+test("joystick release also bypasses a delayed motion response", async () => {
+  const h = await harness();
+  await h.click();
+  let finishMotion;
+  h.reply("drive", new Promise((resolve) => { finishMotion = resolve; }));
+  await h.nodes.get("joystick").emit("pointerdown", { pointerId: 1, clientX: 100, clientY: 20 });
+  await h.nodes.get("joystick").emit("pointerup", { pointerId: 1 });
+  assert.deepEqual(driveFields(h).map(({ throttle, seq }) => [throttle, seq]), [["1", "1"], ["0", "2"]]);
+  finishMotion(ok);
+  await flush();
+});
+
+test("rapid changes keep two requests at most and never replay a released direction", async () => {
+  const h = await harness();
+  await h.click();
+  let finishMotion, finishNeutral;
+  h.reply("drive", new Promise((resolve) => { finishMotion = resolve; }));
+  h.reply("drive", new Promise((resolve) => { finishNeutral = resolve; }));
+  await h.document.emit("keydown", { key: "ArrowUp" });
+  await h.document.emit("keyup", { key: "ArrowUp" });
+  for (let i = 0; i < 10; i++) {
+    await h.document.emit("keydown", { key: "ArrowDown" });
+    await h.tick(120);
+    await h.document.emit("keyup", { key: "ArrowDown" });
+  }
+  assert.equal(driveFields(h).length, 2);
+  finishNeutral(ok);
+  await flush();
+  assert.equal(driveFields(h).length, 2);
+  finishMotion(ok);
+  await flush();
+  assert.deepEqual(driveFields(h).map(({ throttle }) => throttle), ["1", "0", "0"]);
+});
+
+test("only the current held direction is sent after the priority stop completes", async () => {
+  const h = await harness();
+  await h.click();
+  let finishMotion, finishNeutral;
+  h.reply("drive", new Promise((resolve) => { finishMotion = resolve; }));
+  h.reply("drive", new Promise((resolve) => { finishNeutral = resolve; }));
+  await h.document.emit("keydown", { key: "ArrowUp" });
+  await h.document.emit("keyup", { key: "ArrowUp" });
+  await h.document.emit("keydown", { key: "ArrowLeft" });
+  await h.document.emit("keyup", { key: "ArrowLeft" });
+  await h.document.emit("keydown", { key: "ArrowDown" });
+  finishMotion(ok);
+  await flush();
+  assert.equal(driveFields(h).length, 2, "wait for neutral acknowledgement before new motion");
+  finishNeutral(ok);
+  await flush();
+  assert.deepEqual(driveFields(h).map(({ steer, throttle, seq }) => [steer, throttle, seq]),
+    [["0", "1", "1"], ["0", "0", "2"], ["0", "-1", "3"]]);
+});
+
+test("failure of superseded movement does not erase an acknowledged stop", async () => {
+  const h = await harness();
+  await h.click();
+  let finishMotion;
+  h.reply("drive", new Promise((resolve) => { finishMotion = resolve; }));
+  await h.document.emit("keydown", { key: "ArrowUp" });
+  await h.document.emit("keyup", { key: "ArrowUp" });
+  finishMotion({ status: 503, body: { ok: false, message: "Old response failed" } });
+  await flush();
+  assert.equal(h.state(), "Ready to drive");
+  assert.equal(h.nodes.get("arm-label").textContent, "Stop control");
+  assert.equal(h.requests.filter((r) => r.action === "stop").length, 0);
+});
+
+test("a failed priority stop disarms and sends the independent emergency stop", async () => {
+  const h = await harness();
+  await h.click();
+  let finishMotion;
+  h.reply("drive", new Promise((resolve) => { finishMotion = resolve; }));
+  h.reply("drive", { status: 503, body: { ok: false, message: "Stop unavailable" } });
+  await h.document.emit("keydown", { key: "ArrowUp" });
+  await h.document.emit("keyup", { key: "ArrowUp" });
+  assert.equal(h.state(), "Stop unavailable");
+  assert.equal(h.nodes.get("arm-label").textContent, "Start control");
+  assert.equal(h.requests.filter((r) => r.action === "stop").length, 1);
+  finishMotion(ok);
+  await flush();
+  await h.tick(120);
+  assert.equal(driveFields(h).length, 2);
+});
+
+for (const firstReply of ["motion", "neutral"]) {
+  test(`a new session ignores old ${firstReply} failure and the other late success`, async () => {
+    const h = await harness();
+    await h.click();
+    const finish = {};
+    h.reply("drive", new Promise((resolve) => { finish.motion = resolve; }));
+    h.reply("drive", new Promise((resolve) => { finish.neutral = resolve; }));
+    await h.document.emit("keydown", { key: "ArrowUp" });
+    await h.document.emit("keyup", { key: "ArrowUp" });
+    await h.document.emit("keydown", { key: "ArrowRight" });
+    assert.equal(driveFields(h).length, 2, "old motion and neutral are both outstanding");
+
+    await h.click();
+    const nextToken = "b".repeat(64);
+    h.reply("arm", { status: 200, body: { ok: true, token: nextToken } });
+    await h.click();
+    assert.equal(h.state(), "Ready to drive");
+
+    // New input is also released before either old request completes.
+    await h.document.emit("keydown", { key: "ArrowDown" });
+    await h.document.emit("keyup", { key: "ArrowDown" });
+    finish[firstReply]({ status: 503, body: { ok: false, message: "Previous session failed" } });
+    await flush();
+    assert.equal(h.state(), "Ready to drive", "a previous session failure cannot disarm the new session");
+    assert.equal(h.nodes.get("arm-label").textContent, "Stop control");
+    assert.equal(driveFields(h).length, 2, "wait for both old requests before using their slots");
+
+    finish[firstReply === "motion" ? "neutral" : "motion"](ok);
+    await flush();
+    assert.equal(h.state(), "Ready to drive");
+    assert.equal(h.nodes.get("arm-label").textContent, "Stop control");
+    assert.equal(h.requests.filter((r) => r.action === "stop").length, 1, "only the explicit session stop was sent");
+    assert.deepEqual(driveFields(h).map(({ token: session, steer, throttle, seq }) => [session, steer, throttle, seq]), [
+      [token, "0", "1", "1"],
+      [token, "0", "0", "2"],
+      [nextToken, "0", "0", "1"],
+    ], "the new session starts at sequence one and sends only the current neutral input");
+    await h.tick(120);
+    assert.equal(driveFields(h).length, 3, "released input from either session is not replayed");
+
+    await h.document.emit("keydown", { key: "ArrowLeft" });
+    assert.deepEqual(driveFields(h).at(-1), {
+      action: "drive", token: nextToken, steer: "-1", throttle: "0", speed: "slow", seq: "2",
+    }, "new input continues the new session sequence");
+  });
+}

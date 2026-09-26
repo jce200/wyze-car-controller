@@ -30,6 +30,10 @@ and test it in a clear, controlled area.
   also request a stop.
 - Emergency stop invalidates all active control sessions. Late commands from
   an earlier session are rejected.
+- Releasing the controls sends neutral immediately, even if a movement request
+  is still awaiting its response. Per-session sequence numbers prevent an older
+  request from overwriting a newer stop. Input changes are coalesced rather than
+  queued for later playback.
 - Drive requests use Thingino's existing `require_auth` rules. The page contains
   no embedded password or API key. Thingino may also allow API keys or a
   configured trusted-IP bypass, so review your camera's settings.
@@ -96,6 +100,21 @@ to the public internet.
 
 ## Troubleshooting
 
+If the Car keeps driving briefly after you release a key or joystick, update
+the controller and reload the page. Earlier versions waited for the current
+movement response before sending neutral. The current version sends neutral
+independently and rejects commands that arrive out of order. This removes that
+browser-side wait; Wi-Fi, the roughly 100 ms motor loop, video latency, and
+physical stopping distance still affect the result. Actual stopping delay has
+not yet been measured on the Car.
+
+The update changes the drive protocol, so refresh any open controller tabs.
+An old tab reports "Missing command sequence; refresh the controller page"
+instead of sending unordered movement. If the controller repeatedly reports a
+busy command lock after a process was forcibly killed, reboot the camera to
+clear the temporary lock.
+Emergency stop and the motor watchdog do not wait for that lock.
+
 Switching to another window or hiding the controller tab deliberately stops
 control. The page now shows a persistent pause reason; return to the controller
 and press **Start control** to resume. It never resumes driving automatically.
@@ -147,6 +166,13 @@ commands require authenticated POST requests with the custom content type
 accepted, but some Thingino uhttpd builds do not pass custom headers to CGI.
 Ordinary HTML form requests remain rejected. Start control creates a temporary session token; emergency stop invalidates all
 current drive commands.
+
+Each drive POST includes a per-session `seq` integer from 1 through 999999999,
+increasing with each dispatched command (including neutral). The camera accepts
+only a sequence newer than the last saved command for that session. Older or
+duplicate commands return `{"ok":true,"ignored":true}` without updating the
+motor watchdog timestamp. Releasing the controls uses a separate request slot;
+there are at most two drive requests outstanding and no movement history queue.
 
 ## Development and sources
 

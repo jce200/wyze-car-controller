@@ -52,7 +52,7 @@ class TimingTests(unittest.TestCase):
     def drive_request(self, later_uptime, heartbeat):
         script = self.root / "car.cgi"
         script.write_text(self.clock_fixture_source("car.cgi"), newline="\n")
-        body = f"action=drive&token={TOKEN}&steer=0&throttle=1&speed=slow"
+        body = f"action=drive&seq=1&token={TOKEN}&steer=0&throttle=1&speed=slow"
         env = self.env.copy()
         env.update(
             REQUEST_METHOD="POST", CONTENT_LENGTH=str(len(body)),
@@ -93,7 +93,7 @@ mv() {
     command mv "$@" || return $?
     if [ "$3" = "$CAR_STATE_DIR/heartbeat" ]; then
         printf '10.05 0\n' > "$CAR_TEST_UPTIME"
-        printf '%s %s 0 1 slow\n' "$CAR_TEST_DRIVE_STAMP" "$CAR_TEST_TOKEN" > "$CAR_STATE_DIR/drive"
+        printf '%s %s 0 1 slow 1\n' "$CAR_TEST_DRIVE_STAMP" "$CAR_TEST_TOKEN" > "$CAR_STATE_DIR/drive"
         printf '%s boot\n' "$CAR_TEST_TOKEN" > "$CAR_STATE_DIR/session"
         was_connected=1
         last_lights='0:0'
