@@ -27,7 +27,7 @@ ticks_now() {
     hundredths=${uptime#*.}
     hundredths=${hundredths#0}
     [ -n "$hundredths" ] || hundredths=0
-    NOW=$((seconds * 100 + hundredths))
+    CLOCK_TICKS=$((seconds * 100 + hundredths))
 }
 
 read_number_file() {
@@ -49,7 +49,10 @@ controller_connected() {
     read_number_file "$STATE_DIR/pid"
     [ "$VALUE" -gt 1 ] && kill -0 "$VALUE" 2>/dev/null || return 1
     read_number_file "$STATE_DIR/heartbeat"
-    heartbeat_age=$((NOW - VALUE))
+    # Sample after the heartbeat: it can advance while a request is parsed.
+    # Keep NOW as the receipt time so delayed drive requests stay expired.
+    ticks_now || return 1
+    heartbeat_age=$((CLOCK_TICKS - VALUE))
     [ "$heartbeat_age" -ge 0 ] && [ "$heartbeat_age" -lt 100 ]
 }
 
@@ -93,6 +96,7 @@ write_state() {
 }
 
 ticks_now || reply '500 Internal Server Error' '{"ok":false,"message":"Clock unavailable"}'
+NOW=$CLOCK_TICKS
 
 case "$REQUEST_METHOD" in
     GET)

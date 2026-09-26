@@ -82,12 +82,14 @@ send_lights() {
 }
 
 cleanup() {
+    trap - EXIT HUP INT TERM
     send_drive 0 0 slow 2>/dev/null || :
-    owner=0
-    [ -f "$LOCK_DIR/pid" ] && read -r owner < "$LOCK_DIR/pid"
+    # BusyBox ash can spin in builtin read when EXIT follows a signal trap.
+    owner=$(cat "$LOCK_DIR/pid" 2>/dev/null) || owner=0
     if [ "$owner" = "$$" ]; then
-        rm -f "$STATE_DIR/pid" "$STATE_DIR/heartbeat" "$LOCK_DIR/pid"
-        rmdir "$LOCK_DIR" 2>/dev/null || :
+        rm -f "$STATE_DIR/pid" "$STATE_DIR/heartbeat"
+        # Some Thingino builds provide rm but omit the rmdir applet.
+        rm -rf "$LOCK_DIR"
     fi
 }
 trap cleanup EXIT
@@ -117,6 +119,8 @@ while :; do
         [ -f "$STATE_DIR/session" ] && read -r session session_epoch < "$STATE_DIR/session"
         [ -f "$STATE_DIR/global-stop" ] && read -r stop_epoch < "$STATE_DIR/global-stop"
         case "$drive_stamp" in ''|*[!0-9]*) drive_stamp=0 ;; esac
+        # A request may arrive after this loop's heartbeat was sampled.
+        ticks_now || exit 1
         age=$((NOW - drive_stamp))
         serial_ok=1
         if [ -n "$session" ] && [ "$drive_token" = "$session" ] && [ "$session" != none ] &&

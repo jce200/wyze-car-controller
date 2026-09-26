@@ -183,6 +183,12 @@
     if (sendStop && token) void stopToken(token);
   }
 
+  function pauseControl(message) {
+    const wasActive = armed || arming;
+    disarm(true);
+    if (wasActive) setDriveError(message);
+  }
+
   function normalizeKey(key) {
     if (key.startsWith("Arrow")) return key;
     return key.toLowerCase();
@@ -466,9 +472,9 @@
     }
   });
 
-  window.addEventListener("blur", () => disarm(true));
+  window.addEventListener("blur", () => pauseControl("Paused: controller lost focus"));
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) disarm(true);
+    if (document.hidden) pauseControl("Paused: controller tab hidden");
     else { void pollStatus(); if (el.frame.classList.contains("video-error")) loadVideo(); }
   });
   window.addEventListener("pagehide", stopOnExit);

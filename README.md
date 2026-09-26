@@ -96,10 +96,34 @@ to the public internet.
 
 ## Troubleshooting
 
+Switching to another window or hiding the controller tab deliberately stops
+control. The page now shows a persistent pause reason; return to the controller
+and press **Start control** to resume. It never resumes driving automatically.
+
+If an older version intermittently reports that the controller is unavailable,
+update it. A timing race could incorrectly reject a newly updated heartbeat.
+The fix keeps the 450 ms drive watchdog and does not extend delayed commands.
+If interruptions continue, note the exact message and whether live video also
+freezes, then check USB, Wi-Fi, and the service log below.
+
 If **Start control** reports HTTP 403 on an older installation, update the
 controller and reload the page. Some Thingino uhttpd builds omit custom CGI
 headers; the current controller also sends a dedicated Content-Type that
 those builds support. Authentication stays required.
+
+An older daemon can also hang during shutdown on BusyBox ash. The current
+release avoids that shell issue. If an upgrade stops at "controller did not
+stop", after the deployment files have been copied to `/tmp/wyze-car-deploy`,
+install the new daemon under a temporary name and reboot once:
+
+```sh
+cp /tmp/wyze-car-deploy/car-daemon.sh /opt/wyze-car/car-daemon.sh.new
+chmod 700 /opt/wyze-car/car-daemon.sh.new
+mv /opt/wyze-car/car-daemon.sh.new /opt/wyze-car/car-daemon.sh
+reboot
+```
+
+Then run the normal deployment again to update the remaining files.
 
 Run these commands in an SSH shell on the camera:
 
