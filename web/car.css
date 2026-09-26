@@ -28,7 +28,7 @@ button:focus-visible, .joystick:focus-visible { outline: 2px solid var(--purple-
 .app-shell { min-height: 100svh; display: flex; flex-direction: column; }
 .app-header { min-height: 80px; padding: 16px clamp(22px, 3vw, 52px); display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
 .identity { display: flex; align-items: center; gap: 14px; }
-.identity-mark { display: block; width: 64px; height: 64px; flex: 0 0 auto; object-fit: cover; border-radius: 50%; }
+.identity-mark { display: block; width: 76px; height: 64px; flex: 0 0 auto; object-fit: contain; }
 .product-name { font-size: 18px; font-weight: 800; letter-spacing: .085em; line-height: 1.05; }
 .product-detail { margin-top: 4px; color: var(--muted); font-size: 11px; letter-spacing: .055em; }
 .connection { display: flex; align-items: center; gap: 9px; color: #bdc8c2; font-size: 12px; font-weight: 600; letter-spacing: .015em; white-space: nowrap; }
@@ -143,7 +143,7 @@ h1, h2 { margin: 0; font-size: clamp(26px, 2.2vw, 35px); font-weight: 650; lette
   .product-name { font-size: 15px; }
   .product-detail { font-size: 9px; }
   .identity { gap: 10px; }
-  .identity-mark { width: 48px; height: 48px; }
+  .identity-mark { width: 57px; height: 48px; }
   .connection { font-size: 10px; }
   .auth-banner { align-items: start; flex-direction: column; gap: 5px; padding-inline: 18px; font-size: 11px; }
   .workspace { padding: 23px 18px 24px; gap: 27px; }

@@ -23,7 +23,7 @@ and test it in a clear, controlled area.
 
 - Live video from Thingino's MJPEG stream.
 - A black interface with Wyze mint (`#1DF0BB`), purple accents, and a supplied
-  illustrated Wyze Car logo. Light text and a distinct red emergency stop keep
+  transparent illustrated Wyze Car logo. Light text and a distinct red emergency stop keep
   controls readable; the logo is hosted locally on the camera and also serves
   as the favicon.
 - Aptos typography when installed on the viewing device, with system sans-serif
