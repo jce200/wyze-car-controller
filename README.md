@@ -62,10 +62,22 @@ Keep any other process that writes to this device, including Thingino's
 
 Requirements: a working Thingino camera, root SSH access, Thingino's web UI
 with `/var/www/x/auth.sh`, and `ssh`/`scp` on your computer. You can install
-the software before attaching the Car; the USB serial device is required to
-drive. Log in to the Thingino web UI once before opening the controller.
+the software before attaching the Car. To drive, connect the Wyze Car to the
+camera's USB port and power both; no separate USB serial adapter is needed.
+Log in to the Thingino web UI once before opening the controller.
 
-### Windows PowerShell
+### Install a release (recommended)
+
+Download the ZIP (Windows) or tar.gz (macOS/Linux) installation package from
+[Releases](https://github.com/jce200/wyze-car-controller/releases), together
+with `SHA256SUMS`. Verify and extract the archive, then follow the included
+[INSTALL.md](INSTALL.md). Release packages do not require Git, Python, or Node.js.
+
+### Install from source
+
+To install the current development version instead, use the commands below.
+
+#### Windows PowerShell
 
 ```powershell
 git clone https://github.com/jce200/wyze-car-controller.git
@@ -73,7 +85,7 @@ cd wyze-car-controller
 .\deploy.ps1 -Camera 192.168.1.123
 ```
 
-### macOS or Linux
+#### macOS or Linux
 
 ```sh
 git clone https://github.com/jce200/wyze-car-controller.git
@@ -192,6 +204,17 @@ node --test tests/test_car_ui.mjs
 ```
 
 These tests simulate serial output and cannot replace a physical driving test.
+
+To rebuild an installation release from its exact committed source:
+
+```sh
+python tools/build-release.py --version v0.1.0 --ref v0.1.0 --output dist
+```
+
+The standard-library builder reads a fixed list of files from Git, verifies
+both archives against those committed files, and writes ZIP, tar.gz,
+`INSTALL.md`, and `SHA256SUMS`. Each archive includes `VERSION` and
+`BUILDINFO.json` with the source commit. It excludes local previews and old logos.
 The serial frames are based on Thingino's
 [`car_control`](https://github.com/themactep/thingino-firmware/blob/stable/package/wyze-accessory/files/car_control).
 The video and authentication use Thingino's existing
