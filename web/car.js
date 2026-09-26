@@ -34,6 +34,7 @@
   let armed = false;
   let controlToken = null;
   let arming = false;
+  let driveError = null;
   let armVersion = 0;
   let stopping = false;
   let lightsOn = false;
@@ -54,7 +55,7 @@
     el.stopButton.disabled = !connected;
     el.lights.disabled = !connected;
     el.joystick.classList.toggle("disabled", !connected || !videoReady || !armed);
-    if (!armed) setDriveState(!connected ? "No connection" : !videoReady ? "Waiting for video" : "Not started");
+    if (!armed) setDriveState(driveError || (!connected ? "No connection" : !videoReady ? "Waiting for video" : arming ? "Starting session..." : "Not started"));
   }
 
   function setAuthRequired(required) {
@@ -84,15 +85,20 @@
     el.driveState.classList.toggle("active", active);
   }
 
+  function setDriveError(message) {
+    driveError = message;
+    setDriveState(message);
+  }
+
   function setArmed(value) {
     armed = value;
+    if (value) driveError = null;
     el.armButton.classList.toggle("armed", value);
     el.armLabel.textContent = value ? "Stop control" : "Start control";
     updateAvailability();
     if (value) {
       setDriveState("Ready to drive", true);
     } else {
-      setDriveState(!connected ? "No connection" : !videoReady ? "Waiting for video" : "Not started");
       keys.clear();
       resetPointer();
       lastVector = { steer: 0, throttle: 0 };
@@ -106,8 +112,8 @@
     try {
       const response = await fetch(API, {
         method: "POST",
-        headers: { "X-Car-Control": "1" },
-        body: new URLSearchParams(fields),
+        headers: { "X-Car-Control": "1", "Content-Type": "application/x-wyze-car-control" },
+        body: new URLSearchParams(fields).toString(),
         credentials: "same-origin",
         cache: "no-store",
         signal: abort.signal,
@@ -116,17 +122,22 @@
         setAuthRequired(true);
         throw new Error("Sign in to Thingino");
       }
-      if (!response.ok) {
-        const error = new Error(`HTTP ${response.status}`);
+      let result = null;
+      if (response.headers.get("content-type")?.includes("application/json")) {
+        try {
+          result = await response.json();
+        } catch {
+          if (response.ok) throw new Error("Invalid response from camera");
+        }
+      }
+      const message = [result?.message, result?.error?.message, result?.error]
+        .find((value) => typeof value === "string" && value.trim());
+      if (!response.ok || result?.ok === false || result?.error) {
+        const error = new Error(message || (response.ok ? "Command rejected" : `HTTP ${response.status}`));
         error.status = response.status;
         throw error;
       }
-      if (response.headers.get("content-type")?.includes("application/json")) {
-        const result = await response.json();
-        if (result.ok === false) throw new Error(result.message || "Command rejected");
-        return result;
-      }
-      return null;
+      return result;
     } finally {
       clearTimeout(timer);
     }
@@ -156,8 +167,8 @@
     try {
       void fetch(API, {
         method: "POST",
-        headers: { "X-Car-Control": "1" },
-        body: new URLSearchParams({ action: "stop", token }),
+        headers: { "X-Car-Control": "1", "Content-Type": "application/x-wyze-car-control" },
+        body: new URLSearchParams({ action: "stop", token }).toString(),
         credentials: "same-origin",
         keepalive: true,
       }).catch(() => {});
@@ -249,10 +260,11 @@
       if (token === controlToken) {
         if (error.status === 409) {
           disarm(false);
-          setDriveState("Drive session expired");
+          setDriveError(error.message === "HTTP 409" ? "Drive session expired" : error.message || "Drive session expired");
         } else {
           disarm(true);
           setConnection(false, error.message === "Sign in to Thingino" ? "Sign in to Thingino" : "Controller unavailable", "error");
+          setDriveError(error.message || "Drive command failed");
         }
       }
     } finally {
@@ -400,14 +412,15 @@
   el.armButton.addEventListener("click", async () => {
     if (!connected || !videoReady || arming || stopping) return;
     if (armed) { disarm(true); return; }
+    driveError = null;
     pollGamepad();
     const input = currentVector();
     if (input.steer || input.throttle) {
-      setDriveState("Release the controls first");
+      setDriveError("Release the controls first");
       return;
     }
     if (gamepadStopDown) {
-      setDriveState("Release the emergency stop button");
+      setDriveError("Release the emergency stop button");
       return;
     }
     arming = true;
@@ -430,7 +443,7 @@
     } finally {
       arming = false;
       updateAvailability();
-      if (startError) setDriveState(startError);
+      if (startError) setDriveError(startError);
     }
   });
   el.stopButton.addEventListener("click", () => {

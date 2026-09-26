@@ -116,9 +116,11 @@ class ControllerTests(unittest.TestCase):
             time.sleep(0.02)
         self.fail("Timed out waiting for controller state")
 
-    def request(self, method, body="", header=True, query=""):
+    def request(self, method, body="", header=True, query="", content_type=""):
         env = self.env.copy()
-        env.update(REQUEST_METHOD=method, QUERY_STRING=query, CONTENT_LENGTH=str(len(body)))
+        env.update(REQUEST_METHOD=method, QUERY_STRING=query, CONTENT_LENGTH=str(len(body)),
+                   CONTENT_TYPE=content_type)
+        env.pop("HTTP_X_CAR_CONTROL", None)
         if header:
             env["HTTP_X_CAR_CONTROL"] = "1"
         response = subprocess.run([SH, str(CAMERA / "car.cgi")], input=body.encode(),
@@ -186,6 +188,35 @@ class ControllerTests(unittest.TestCase):
         self.assertIn("400 Bad Request", head)
         head, _ = self.request("GET", query="action=drive")
         self.assertIn("400 Bad Request", head)
+        self.assertFalse((self.state / "drive").exists())
+
+    def test_uhttpd_content_type_without_custom_header(self):
+        # Reproduce uhttpd's CGI environment: Content-Type survives, X-* may not.
+        mime = "application/x-wyze-car-control"
+        head, data = self.request("POST", "action=arm", header=False, content_type=mime)
+        self.assertIn("200 OK", head, data)
+        token = data["token"]
+        head, data = self.request("POST", f"action=drive&steer=0&throttle=0&speed=slow&token={token}",
+                                  header=False, content_type=mime)
+        self.assertIn("200 OK", head, data)
+        head, data = self.request("POST", f"action=stop&token={token}",
+                                  header=False, content_type=mime)
+        self.assertIn("200 OK", head, data)
+        head, _ = self.request("POST", f"action=drive&steer=0&throttle=1&speed=slow&token={token}",
+                               header=False, content_type=mime)
+        self.assertIn("409 Conflict", head)
+
+    def test_cross_origin_form_types_and_preflight_are_rejected(self):
+        for mime in ("", "text/plain", "application/x-www-form-urlencoded",
+                     "multipart/form-data; boundary=test", "application/json",
+                     "application/x-wyze-car-control-extra"):
+            with self.subTest(content_type=mime):
+                head, _ = self.request("POST", "action=arm", header=False, content_type=mime)
+                self.assertIn("403 Forbidden", head)
+        head, _ = self.request("OPTIONS", header=False)
+        self.assertIn("405 Method Not Allowed", head)
+        self.assertNotIn("Access-Control-Allow-Origin", head)
+        self.assertEqual((self.state / "session").read_text().strip(), "none boot")
         self.assertFalse((self.state / "drive").exists())
 
     def test_disconnect_and_single_daemon(self):

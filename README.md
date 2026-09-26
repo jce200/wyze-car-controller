@@ -5,16 +5,18 @@ camera. The camera talks directly to the Car over its USB serial connection;
 your phone or computer only needs a browser on the same local network. No Wyze
 app, cloud service, or separate server is required.
 
-**Hardware status:** Installation, the web page, rejection of unauthenticated
-API requests, and the background service have been checked on a Thingino Wyze
-Cam v2 **without the Car attached**. Serial packets, input validation, and
-the 450 ms motor watchdog pass local tests using a simulated serial device.
-**Actual driving on a physical Wyze Car has not yet been tested.** Treat this as experimental
-software and test it in a clear, controlled area.
+**Hardware status (2026-09-26):** Installation, live video, USB detection,
+and starting/stopping a control session have been checked on a Thingino Wyze
+Cam v2 connected to a physical Wyze Car. The user also confirmed driving in
+Slow mode and stopping when the joystick is released. Fast mode, gamepad
+operation, and the physical stopping delay still need hardware testing.
+Serial packets, input validation, and the 450 ms motor watchdog pass local
+tests using a simulated serial device. Treat this as experimental software
+and test it in a clear, controlled area.
 
 | Camera | Current status |
 | --- | --- |
-| Wyze Cam v2 with Thingino | Installation and web service checked; physical driving still untested. |
+| Wyze Cam v2 with Thingino | Installation, live video and control sessions checked; user confirmed Slow driving and stopping on release with a physical Car. |
 | Wyze Cam v3 with Thingino | Untested with this controller. Thingino has [Car accessory and USB OTG options](https://github.com/themactep/thingino-firmware/blob/stable/configs/cameras/wyze_cam3_t31x_gc2053_atbm6031/wyze_cam3_t31x_gc2053_atbm6031_defconfig), but the USB connection and serial port still need verification on a real v3/Car combination. |
 
 ## Features
@@ -94,6 +96,11 @@ to the public internet.
 
 ## Troubleshooting
 
+If **Start control** reports HTTP 403 on an older installation, update the
+controller and reload the page. Some Thingino uhttpd builds omit custom CGI
+headers; the current controller also sends a dedicated Content-Type that
+those builds support. Authentication stays required.
+
 Run these commands in an SSH shell on the camera:
 
 ```sh
@@ -111,16 +118,19 @@ process stop, reboot the camera to clear `/tmp`; do not start a second writer
 to the serial port.
 
 The authenticated status endpoint is `/x/car.cgi?action=status`. Motor
-commands require authenticated POST requests with `X-Car-Control: 1`. Start
-control creates a temporary session token; emergency stop invalidates all
+commands require authenticated POST requests with the custom content type
+`application/x-wyze-car-control`. The legacy `X-Car-Control: 1` header is also
+accepted, but some Thingino uhttpd builds do not pass custom headers to CGI.
+Ordinary HTML form requests remain rejected. Start control creates a temporary session token; emergency stop invalidates all
 current drive commands.
 
 ## Development and sources
 
-On a computer with Python and a POSIX shell (Git Bash on Windows):
+On a computer with Python, Node.js, and a POSIX shell (Git Bash on Windows):
 
 ```sh
 python -m unittest discover -s tests -v
+node --test tests/test_car_ui.mjs
 ```
 
 These tests simulate serial output and cannot replace a physical driving test.

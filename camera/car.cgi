@@ -135,7 +135,13 @@ case "$REQUEST_METHOD" in
         reply '200 OK' "{\"ok\":true,\"connected\":$connected,\"armed\":$armed,\"lights\":$lights,\"lastCommandAgeMs\":$age_json,\"device\":\"$DEVICE\",\"message\":\"$message\"}"
         ;;
     POST)
-        [ "$HTTP_X_CAR_CONTROL" = 1 ] || reply '403 Forbidden' '{"ok":false,"message":"Missing control header"}'
+        # uhttpd forwards Content-Type but may omit arbitrary X-* CGI headers.
+        # Both accepted markers require a CORS preflight from another origin.
+        # Never accept the safelisted types sent by cross-origin HTML forms.
+        if [ "$HTTP_X_CAR_CONTROL" != 1 ] &&
+           [ "$CONTENT_TYPE" != application/x-wyze-car-control ]; then
+            reply '403 Forbidden' '{"ok":false,"message":"Missing control request marker; refresh the controller page"}'
+        fi
         case "$CONTENT_LENGTH" in ''|*[!0-9]*) bad_request ;; esac
         [ "$CONTENT_LENGTH" -gt 0 ] && [ "$CONTENT_LENGTH" -le 160 ] || bad_request
         body=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null) || bad_request
