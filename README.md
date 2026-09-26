@@ -22,9 +22,10 @@ and test it in a clear, controlled area.
 ## Features
 
 - Live video from Thingino's MJPEG stream.
-- A black interface with Wyze mint (`#1DF0BB`), purple accents, and an original
-  camera-rover logo. Light text and a distinct red emergency stop keep controls
-  readable; the local SVG logo adds less than 1 KB and also serves as the favicon.
+- A black interface with Wyze mint (`#1DF0BB`), purple accents, and a supplied
+  illustrated Wyze Car logo. Light text and a distinct red emergency stop keep
+  controls readable; the logo is hosted locally on the camera and also serves
+  as the favicon.
 - Aptos typography when installed on the viewing device, with system sans-serif
   fallbacks. The camera does not need to download or host font files.
 - Touch joystick, keyboard (WASD or arrow keys), and gamepad controls when the
