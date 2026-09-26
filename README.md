@@ -23,9 +23,11 @@ and test it in a clear, controlled area.
 
 - Live video from Thingino's MJPEG stream.
 - A black interface with Wyze mint (`#1DF0BB`), purple accents, and a supplied
-  transparent illustrated Wyze Car logo. Light text and a distinct red emergency stop keep
-  controls readable; the logo is hosted locally on the camera and also serves
-  as the favicon.
+  transparent SVG Wyze Car logo. Hover to rotate, drag to turn it manually,
+  or tap to toggle rotation on touchscreens. The renderer runs during interaction
+  and settling, and pauses when hidden or offscreen. All logo files are hosted
+  locally on the camera; a static SVG serves as the favicon. Light text and a
+  distinct red emergency stop keep controls readable.
 - Aptos typography when installed on the viewing device, with system sans-serif
   fallbacks. The camera does not need to download or host font files.
 - Touch joystick, keyboard (WASD or arrow keys), and gamepad controls when the

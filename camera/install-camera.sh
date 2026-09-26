@@ -9,7 +9,8 @@ SOURCE=/tmp/wyze-car-deploy
 [ -f "$SOURCE/index.html" ]
 [ -f "$SOURCE/car.css" ]
 [ -f "$SOURCE/car.js" ]
-[ -f "$SOURCE/car-logo.png" ]
+[ -f "$SOURCE/car-logo.svg" ]
+[ -f "$SOURCE/car-logo.js" ]
 [ -f /var/www/x/auth.sh ]
 probe_file=$(mktemp /tmp/wyze-car-random.XXXXXX)
 trap 'rm -f "$probe_file"' EXIT
@@ -35,11 +36,12 @@ cp "$SOURCE/S95wyze-car" /etc/init.d/S95wyze-car
 cp "$SOURCE/index.html" /var/www/car/index.html
 cp "$SOURCE/car.css" /var/www/car/car.css
 cp "$SOURCE/car.js" /var/www/car/car.js
-cp "$SOURCE/car-logo.png" /var/www/car/car-logo.png
+cp "$SOURCE/car-logo.svg" /var/www/car/car-logo.svg
+cp "$SOURCE/car-logo.js" /var/www/car/car-logo.js
 chmod 700 /opt/wyze-car/car-daemon.sh
 chmod 755 /var/www/x/car.cgi
 chmod 755 /etc/init.d/S95wyze-car
-chmod 644 /var/www/car/index.html /var/www/car/car.css /var/www/car/car.js /var/www/car/car-logo.png
+chmod 644 /var/www/car/index.html /var/www/car/car.css /var/www/car/car.js /var/www/car/car-logo.svg /var/www/car/car-logo.js
 
 /etc/init.d/S95wyze-car start
 printf 'Installed. Open http://<camera-address>/car/ after logging in to Thingino.\n'

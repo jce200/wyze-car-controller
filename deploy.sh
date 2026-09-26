@@ -15,7 +15,7 @@ PROJECT_ROOT=$(CDPATH= cd "$(dirname "$0")" && pwd)
 cd "$PROJECT_ROOT"
 ssh "$SSH_TARGET" 'mkdir -p /tmp/wyze-car-deploy'
 scp -O camera/car-daemon.sh camera/car.cgi camera/S95wyze-car \
-    camera/install-camera.sh web/index.html web/car.css web/car.js web/car-logo.png \
+    camera/install-camera.sh web/index.html web/car.css web/car.js web/car-logo.svg web/car-logo.js \
     "$SSH_TARGET:/tmp/wyze-car-deploy/"
 ssh "$SSH_TARGET" 'sh /tmp/wyze-car-deploy/install-camera.sh'
 
