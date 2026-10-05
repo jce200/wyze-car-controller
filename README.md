@@ -1,35 +1,21 @@
 # Wyze Car Controller for Thingino
 
-An experimental, self-hosted browser controller for a Wyze Car with a Thingino
-camera. The camera talks directly to the Car over its USB serial connection;
-your phone or computer only needs a browser on the same local network. No Wyze
-app, cloud service, or separate server is required.
+An experimental browser alternative to the Wyze Car app for a Car with a
+Thingino camera. Open the page hosted on the camera from a phone or computer
+to watch live video and drive. It uses the Car's existing USB connection;
+normal operation on a local network needs no Wyze account, cloud service, or
+additional server.
 
-**Hardware status (2026-09-26):** Installation, live video, USB detection,
-and starting/stopping a control session have been checked on a Thingino Wyze
-Cam v2 connected to a physical Wyze Car. The user also confirmed driving in
-Slow mode and stopping when the joystick is released. Fast mode, gamepad
-operation, and the physical stopping delay still need hardware testing.
-Serial packets, input validation, and the 450 ms motor watchdog pass local
-tests using a simulated serial device. Treat this as experimental software
-and test it in a clear, controlled area.
-
-| Camera | Current status |
-| --- | --- |
-| Wyze Cam v2 with Thingino | Installation, live video and control sessions checked; user confirmed Slow driving and stopping on release with a physical Car. |
-| Wyze Cam v3 with Thingino | Untested with this controller. Thingino has [Car accessory and USB OTG options](https://github.com/themactep/thingino-firmware/blob/stable/configs/cameras/wyze_cam3_t31x_gc2053_atbm6031/wyze_cam3_t31x_gc2053_atbm6031_defconfig), but the USB connection and serial port still need verification on a real v3/Car combination. |
+**Hardware status:** Installation, live video, Slow driving, and stopping on
+release have been confirmed with a physical Wyze Car and a Thingino Wyze Cam v2.
+Fast mode, physical gamepad control, Wyze Cam v3 compatibility, and actual
+stopping delay or distance have not been verified. Serial commands, input
+validation, and the motor watchdog pass tests with a simulated serial device.
+Treat this as experimental software and start in a clear area.
 
 ## Features
 
 - Live video from Thingino's MJPEG stream.
-- A black interface with Wyze mint (`#1DF0BB`), purple accents, and a supplied
-  transparent SVG Wyze Car logo. Hover to rotate, drag to turn it manually,
-  or tap to toggle rotation on touchscreens. The renderer runs during interaction
-  and settling, and pauses when hidden or offscreen. All logo files are hosted
-  locally on the camera; a static SVG serves as the favicon. Light text and a
-  distinct red emergency stop keep controls readable.
-- Aptos typography when installed on the viewing device, with system sans-serif
-  fallbacks. The camera does not need to download or host font files.
 - Touch joystick, keyboard (WASD or arrow keys), and gamepad controls when the
   browser exposes a gamepad.
 - Slow/fast speed selection, headlights, and a prominent emergency stop button.
@@ -45,13 +31,15 @@ and test it in a clear, controlled area.
 - Drive requests use Thingino's existing `require_auth` rules. The page contains
   no embedded password or API key. Thingino may also allow API keys or a
   configured trusted-IP bypass, so review your camera's settings.
+- Black interface with Wyze mint accents and a rotating SVG Car logo. Aptos is
+  used when available on the viewing device, with system-font fallbacks.
 
 ## How it connects
 
-The camera mounts on the Wyze Car and connects to it through the Car's USB
-connector. That USB link carries motor commands; it is not a cable to your
-phone or computer. The Car and camera need their normal battery power. Your
-phone/computer connects to the camera over Wi-Fi through the same local network.
+The camera mounts on the Wyze Car and uses the same camera-to-Car USB connection
+as the original setup. Your phone or computer connects to the Thingino camera
+over the local network. Provide power to both the camera and the Car; the camera
+can use a wall outlet while testing or a power bank for untethered driving.
 Internet access is not needed for normal operation.
 
 The controller expects the Car's CP210x serial interface at `/dev/ttyUSB0`.
@@ -98,8 +86,9 @@ the project over SSH and run the camera installer. They use `scp -O` because
 Thingino's SSH server may not support SFTP. Enter the camera's root password
 when SSH asks for it; do not put it into the script.
 
-Open `http://<camera-ip>/car/` after installation. No firmware reflashing is
-needed. The installer places the page in `/var/www/car/`, the CGI endpoint in
+Open `http://<camera-ip>/car/` after installation. If the camera already runs
+Thingino, no further firmware flashing is needed. The installer places the page
+in `/var/www/car/`, the CGI endpoint in
 `/var/www/x/`, the motor service in `/opt/wyze-car/`, and the startup script
 in `/etc/init.d/`. Thingino retains those files in its
 [writable overlay](https://github.com/themactep/thingino-firmware/blob/stable/docs/overlayfs.md).
