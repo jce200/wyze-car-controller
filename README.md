@@ -23,7 +23,8 @@ Treat this as experimental software and start in a clear area.
   drive request. Releasing the controls, hiding the tab, and connection loss
   also request a stop.
 - Emergency stop invalidates all active control sessions. Late commands from
-  an earlier session are rejected.
+  an earlier session are rejected. The button remains available after a status
+  error; if a stop request cannot be confirmed, the page says so.
 - Releasing the controls sends neutral immediately, even if a movement request
   is still awaiting its response. Per-session sequence numbers prevent an older
   request from overwriting a newer stop. Input changes are coalesced rather than
@@ -82,9 +83,10 @@ sh ./deploy.sh 192.168.1.123
 ```
 
 Replace the example IP address with your camera's address. Both scripts copy
-the project over SSH and run the camera installer. They use `scp -O` because
-Thingino's SSH server may not support SFTP. Enter the camera's root password
-when SSH asks for it; do not put it into the script.
+the project to a unique temporary directory over SSH and run the camera
+installer. They use `scp -O` because Thingino's SSH server may not support
+SFTP. Enter the camera's root password when SSH asks for it; do not put it
+into the script.
 
 Open `http://<camera-ip>/car/` after installation. If the camera already runs
 Thingino, no further firmware flashing is needed. The installer places the page
@@ -93,6 +95,12 @@ in `/var/www/car/`, the CGI endpoint in
 in `/etc/init.d/`. Thingino retains those files in its
 [writable overlay](https://github.com/themactep/thingino-firmware/blob/stable/docs/overlayfs.md).
 Runtime state is kept in `/tmp`.
+The installer prepares all replacement files and backs up the existing ones
+before stopping the controller. If the install or restart fails normally, it
+tries to restore the previous files and restart the previous service. An
+interrupted install or a daemon that will not stop may still require a reboot.
+If rollback is reported incomplete, disconnect the Car and save the error and
+temporary backup path before rebooting; a reboot clears `/tmp`.
 
 ## First drive and safety
 
@@ -141,11 +149,12 @@ those builds support. Authentication stays required.
 
 An older daemon can also hang during shutdown on BusyBox ash. The current
 release avoids that shell issue. If an upgrade stops at "controller did not
-stop", after the deployment files have been copied to `/tmp/wyze-car-deploy`,
-install the new daemon under a temporary name and reboot once:
+stop", use the temporary upload directory printed by the deployment script
+to install the new daemon under a temporary name and reboot once. Replace the
+example directory below with the one printed during your install:
 
 ```sh
-cp /tmp/wyze-car-deploy/car-daemon.sh /opt/wyze-car/car-daemon.sh.new
+cp /tmp/wyze-car-deploy.ABC123/car-daemon.sh /opt/wyze-car/car-daemon.sh.new
 chmod 700 /opt/wyze-car/car-daemon.sh.new
 mv /opt/wyze-car/car-daemon.sh.new /opt/wyze-car/car-daemon.sh
 reboot
@@ -197,7 +206,7 @@ These tests simulate serial output and cannot replace a physical driving test.
 To rebuild an installation release from its exact committed source:
 
 ```sh
-python tools/build-release.py --version v0.1.0 --ref v0.1.0 --output dist
+python tools/build-release.py --version v0.2.0 --ref v0.2.0 --output dist
 ```
 
 The standard-library builder reads a fixed list of files from Git, verifies

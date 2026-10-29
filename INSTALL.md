@@ -1,4 +1,4 @@
-# Install Wyze Car Controller v0.1.0
+# Install Wyze Car Controller v0.2.0
 
 This is an experimental pre-release for a Wyze Car connected to a Thingino
 camera. It installs the controller on an existing Thingino system; it is not
@@ -18,11 +18,11 @@ needed. The installer requires Thingino's `/var/www/x/auth.sh`.
 
 ## 1. Download and verify
 
-From the [v0.1.0 release](https://github.com/jce200/wyze-car-controller/releases/tag/v0.1.0),
+From the [v0.2.0 release](https://github.com/jce200/wyze-car-controller/releases/tag/v0.2.0),
 download one of these installation packages and `SHA256SUMS`:
 
-- **Windows:** `wyze-car-controller-v0.1.0.zip`
-- **macOS/Linux:** `wyze-car-controller-v0.1.0.tar.gz`
+- **Windows:** `wyze-car-controller-v0.2.0.zip`
+- **macOS/Linux:** `wyze-car-controller-v0.2.0.tar.gz`
 
 Calculate the archive's SHA-256 and compare it with the line for that filename
 in `SHA256SUMS`. Continue only if they match.
@@ -30,19 +30,19 @@ in `SHA256SUMS`. Continue only if they match.
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\wyze-car-controller-v0.1.0.zip -Algorithm SHA256
+Get-FileHash .\wyze-car-controller-v0.2.0.zip -Algorithm SHA256
 ```
 
 macOS:
 
 ```sh
-shasum -a 256 wyze-car-controller-v0.1.0.tar.gz
+shasum -a 256 wyze-car-controller-v0.2.0.tar.gz
 ```
 
 Linux:
 
 ```sh
-sha256sum wyze-car-controller-v0.1.0.tar.gz
+sha256sum wyze-car-controller-v0.2.0.tar.gz
 ```
 
 ## 2. Extract and install
@@ -53,8 +53,8 @@ on your computer. Git, Python, and Node.js are not needed to install a release.
 Windows PowerShell:
 
 ```powershell
-Expand-Archive .\wyze-car-controller-v0.1.0.zip -DestinationPath .
-cd .\wyze-car-controller-v0.1.0
+Expand-Archive .\wyze-car-controller-v0.2.0.zip -DestinationPath .
+cd .\wyze-car-controller-v0.2.0
 .\deploy.ps1 -Camera 192.168.1.123
 ```
 
@@ -78,15 +78,16 @@ policy may still prevent execution.
 macOS/Linux:
 
 ```sh
-tar -xzf wyze-car-controller-v0.1.0.tar.gz
-cd wyze-car-controller-v0.1.0
+tar -xzf wyze-car-controller-v0.2.0.tar.gz
+cd wyze-car-controller-v0.2.0
 sh ./deploy.sh 192.168.1.123
 ```
 
 SSH may ask you to verify the camera's host key on the first connection.
 Enter the camera's root password when prompted; do not put it in a script or
 share it in a GitHub issue. Both deployment scripts use legacy SCP (`scp -O`)
-for compatibility with Thingino's SSH server.
+for compatibility with Thingino's SSH server. They print the unique temporary
+upload directory used on the camera; keep that path if installation fails.
 
 ## 3. Open the controller
 
@@ -103,8 +104,12 @@ same USB serial device while this controller is running.
 ## Updates and limitations
 
 Install a newer release using its deployment script, then reload every open
-controller tab. The installer restarts the controller service. See the included
-`README.md` for older-daemon shutdown problems and other troubleshooting.
+controller tab. The installer prepares replacement files before stopping the
+service and restores the previous files if a normal install or restart fails.
+If rollback is incomplete, leave the Car disconnected and save the error and
+temporary backup path before rebooting; `/tmp` is cleared on reboot. See the
+included `README.md` for older-daemon shutdown problems and other
+troubleshooting.
 
 Slow driving and stopping on release have been confirmed by the owner on a
 Thingino Wyze Cam v2 and a physical Wyze Car. Wyze Cam v3, Fast mode, and physical
@@ -112,7 +117,7 @@ gamepad control have not been verified. Actual stopping delay and distance have
 not been measured. The software watchdog is not a guarantee of physical
 stopping distance. Keep the camera on a trusted local network.
 
-When reporting a problem, include `v0.1.0`, your camera model, Thingino version,
+When reporting a problem, include `v0.2.0`, your camera model, Thingino version,
 and the message shown by the controller. The archive's `BUILDINFO.json` records
 the exact source commit. Do not include passwords or control-session tokens.
 

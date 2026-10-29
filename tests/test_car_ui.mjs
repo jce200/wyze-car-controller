@@ -195,6 +195,72 @@ test("an explicit Stop control remains a normal stop", async () => {
   assert.equal(h.requests.filter((r) => r.action === "stop").length, 1);
 });
 
+test("emergency stop stays available after a status failure and reports an unconfirmed stop", async () => {
+  const h = await harness();
+  h.reply("status", { status: 503, body: { ok: false } });
+  await h.tick(2500);
+  assert.equal(h.nodes.get("stop-button").disabled, false);
+  h.reply("stop", { status: 503, body: { ok: false } });
+  await h.nodes.get("stop-button").emit("click");
+  assert.equal(h.state(), "Stop not confirmed. Check the Car and try again.");
+  assert.equal(h.requests.filter((r) => r.action === "stop").length, 1);
+  await h.nodes.get("stop-button").emit("click");
+  assert.equal(h.state(), "No connection", "a successful retry clears the warning");
+  assert.equal(h.requests.filter((r) => r.action === "stop").length, 2);
+});
+
+test("an unconfirmed stop of an active session remains visible after status recovers", async () => {
+  const h = await harness();
+  await h.click();
+  h.reply("stop", { status: 503, body: { ok: false } });
+  await h.nodes.get("stop-button").emit("click");
+  assert.equal(h.nodes.get("arm-label").textContent, "Start control");
+  assert.equal(h.state(), "Stop not confirmed. Check the Car and try again.");
+  assert.equal(new URLSearchParams(h.requests.find((r) => r.action === "stop").body).get("token"), token);
+  await h.tick(2500);
+  assert.equal(h.state(), "Stop not confirmed. Check the Car and try again.");
+});
+
+test("a status poll during an in-flight stop cannot hide its failure", async () => {
+  const h = await harness();
+  await h.click();
+  let failStop;
+  h.reply("stop", new Promise((resolve) => { failStop = resolve; }));
+  await h.nodes.get("stop-button").emit("click");
+  h.reply("status", { status: 503, body: { ok: false } });
+  await h.tick(2500);
+  failStop({ status: 503, body: { ok: false } });
+  await flush();
+  assert.equal(h.state(), "Stop not confirmed. Check the Car and try again.");
+});
+
+test("a failed stop after cancelling an in-flight arm is shown", async () => {
+  const h = await harness();
+  let finishArm;
+  h.reply("arm", new Promise((resolve) => { finishArm = resolve; }));
+  const arming = h.click();
+  await flush();
+  await h.nodes.get("stop-button").emit("click");
+  h.reply("stop", { status: 503, body: { ok: false } });
+  finishArm({ status: 200, body: { ok: true, token } });
+  await arming;
+  await flush();
+  assert.equal(h.state(), "Stop not confirmed. Check the Car and try again.");
+  assert.equal(h.nodes.get("arm-label").textContent, "Start control");
+});
+
+test("a late failed stop cannot overwrite a later successful stop", async () => {
+  const h = await harness();
+  let failFirst;
+  h.reply("stop", new Promise((resolve) => { failFirst = resolve; }));
+  await h.nodes.get("stop-button").emit("click");
+  await h.nodes.get("stop-button").emit("click");
+  failFirst({ status: 503, body: { ok: false } });
+  await flush();
+  assert.equal(h.state(), "Not started");
+  assert.equal(h.requests.filter((r) => r.action === "stop").length, 2);
+});
+
 const driveFields = (h) => h.requests.filter((r) => r.action === "drive")
   .map((r) => Object.fromEntries(new URLSearchParams(r.body)));
 const ok = { status: 200, body: { ok: true } };

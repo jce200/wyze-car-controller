@@ -6,6 +6,7 @@
   const DRIVE_INTERVAL_MS = 120;
   const STATUS_INTERVAL_MS = 2500;
   const REQUEST_TIMEOUT_MS = 1800;
+  const STOP_UNCONFIRMED = "Stop not confirmed. Check the Car and try again.";
 
   const el = {
     connection: document.getElementById("connection"),
@@ -36,7 +37,8 @@
   let arming = false;
   let driveError = null;
   let armVersion = 0;
-  let stopping = false;
+  let pendingStops = 0;
+  let latestStopAttempt = 0;
   let lightsOn = false;
   let speed = "slow";
   let pointerId = null;
@@ -54,10 +56,13 @@
   let gamepadStopDown = false;
 
   function updateAvailability() {
-    el.armButton.disabled = !connected || !videoReady || arming || stopping;
-    el.stopButton.disabled = !connected;
+    el.armButton.disabled = !connected || !videoReady || arming || pendingStops > 0;
+    // A failed status poll does not prove the camera cannot accept a stop.
+    el.stopButton.disabled = false;
     el.lights.disabled = !connected;
-    el.joystick.classList.toggle("disabled", !connected || !videoReady || !armed);
+    const joystickDisabled = !connected || !videoReady || !armed;
+    el.joystick.classList.toggle("disabled", joystickDisabled);
+    el.joystick.setAttribute("aria-disabled", String(joystickDisabled));
     if (!armed) setDriveState(driveError || (!connected ? "No connection" : !videoReady ? "Waiting for video" : arming ? "Starting session..." : "Not started"));
   }
 
@@ -149,16 +154,23 @@
   }
 
   async function stopToken(token) {
-    stopping = true;
+    const attempt = ++latestStopAttempt;
+    pendingStops += 1;
     updateAvailability();
     try {
       await apiPost(token ? { action: "stop", token } : { action: "stop" });
+      if (attempt === latestStopAttempt && driveError === STOP_UNCONFIRMED) {
+        driveError = null;
+      }
       return true;
     } catch (error) {
       if (error.status === 409) return true;
+      if (attempt === latestStopAttempt && !armed) {
+        setDriveError(STOP_UNCONFIRMED);
+      }
       return false;
     } finally {
-      stopping = false;
+      pendingStops -= 1;
       updateAvailability();
     }
   }
@@ -441,7 +453,7 @@
   });
 
   el.armButton.addEventListener("click", async () => {
-    if (!connected || !videoReady || arming || stopping) return;
+    if (!connected || !videoReady || arming || pendingStops > 0) return;
     if (armed) { disarm(true); return; }
     driveError = null;
     pollGamepad();
