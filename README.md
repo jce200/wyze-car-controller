@@ -189,6 +189,19 @@ To let GitHub Actions build it, add three repository secrets under **Settings
 Pushes to `main` and tags starting with `v` then also produce a
 `wyze-car-android-release` artifact. Pull requests never receive the key.
 
+Pushing a tag such as `v0.2.0` also attaches the signed APK to the GitHub
+Release for that tag as `wyze-car-controller-android-v0.2.0.apk`, creating the
+release if it does not exist yet. The tag sets the app's version name:
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+CI builds carry an increasing version code, so a newer CI build installs over
+an older one. A local build has version code 1 and will not install over a CI
+build; uninstall the app first when switching back.
+
 ## First drive and safety
 
 Put the Car on the floor with open space around it. Open the controller page,
