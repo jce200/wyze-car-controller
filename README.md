@@ -189,9 +189,11 @@ To let GitHub Actions build it, add three repository secrets under **Settings
 Pushes to `main` and tags starting with `v` then also produce a
 `wyze-car-android-release` artifact. Pull requests never receive the key.
 
-Pushing a tag such as `v0.2.0` also attaches the signed APK to the GitHub
-Release for that tag as `wyze-car-controller-android-v0.2.0.apk`, creating the
-release if it does not exist yet. The tag sets the app's version name:
+Pushing a tag such as `v0.2.0` also publishes a GitHub Release for that tag,
+creating it if it does not exist yet. It holds the signed APK as
+`wyze-car-controller-android-v0.2.0.apk`, the camera installation packages
+(ZIP and tar.gz) built by `tools/build-release.py`, `INSTALL.md`, and one
+`SHA256SUMS` covering all of them. The tag sets the app's version name:
 
 ```sh
 git tag v0.2.0
