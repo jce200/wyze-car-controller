@@ -32,6 +32,10 @@ Treat this as experimental software and start in a clear area.
 - Drive requests use Thingino's existing `require_auth` rules. The page contains
   no embedded password or API key. Thingino may also allow API keys or a
   configured trusted-IP bypass, so review your camera's settings.
+- On a phone held sideways, video and controls sit side by side and fit the
+  screen without scrolling.
+- An optional [Android app](#android-app) shows the controller full screen and
+  adds gamepad support.
 - Black interface with Wyze mint accents and a rotating SVG Car logo. Aptos is
   used when available on the viewing device, with system-font fallbacks.
 
@@ -101,6 +105,54 @@ tries to restore the previous files and restart the previous service. An
 interrupted install or a daemon that will not stop may still require a reboot.
 If rollback is reported incomplete, disconnect the Car and save the error and
 temporary backup path before rebooting; a reboot clears `/tmp`.
+
+## Android app
+
+The `android/` directory contains a small Android app (Android 8.0 or newer).
+It is a full-screen shell around the controller page that the camera hosts, so
+the controller must be installed on the camera first, as described above. All
+drive and safety logic stays in that page and on the camera. The app adds:
+
+- A setup screen for the camera address, which it remembers.
+- Full-screen display that keeps the screen on while you drive.
+- A sign-in dialog when the camera asks for HTTP authentication. Thingino's own
+  sign-in page also works inside the app; use **Open Car controller** to return.
+- Gamepad support (Bluetooth or USB): left stick, D-pad or triggers drive, and
+  **B** is the emergency stop. The app passes these to the page as its keyboard
+  controls, because Android WebView does not reliably expose gamepads to a page
+  served over plain HTTP.
+- Clear messages when the camera is unreachable or the controller is missing.
+
+Press **Back** for the menu: reload, change the camera address, open the
+Thingino web interface, or exit. Leaving the app, locking the phone, or opening
+the menu pauses control just like hiding a browser tab, and the camera's 450 ms
+watchdog still applies. The app only needs the network permission and allows
+plain HTTP because that is what Thingino serves; keep using it on a trusted
+local network. English and Dutch are included.
+
+**Status:** the app builds and its unit tests pass, and its gamepad-to-keyboard
+bridge has been checked against the controller page in desktop Chromium. It has
+not yet been run on an Android device or with a physical Car or gamepad.
+
+### Get the app
+
+Each push builds a debug APK in GitHub Actions: open the latest **CI** run under
+the repository's **Actions** tab and download the `wyze-car-android-debug`
+artifact. To build it yourself you need JDK 17 and the Android SDK
+(`ANDROID_HOME` set, or simply open `android/` in Android Studio):
+
+```sh
+cd android
+./gradlew assembleDebug
+```
+
+The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`.
+Copy it to the phone and open it, allowing installation from that source when
+Android asks. Debug builds from different machines are signed with different
+keys; uninstall the old app before installing one built elsewhere. For a
+release build signed with your own key, set `WYZE_CAR_KEYSTORE`,
+`WYZE_CAR_KEYSTORE_PASSWORD`, `WYZE_CAR_KEY_ALIAS`, and `WYZE_CAR_KEY_PASSWORD`
+and run `./gradlew assembleRelease`.
 
 ## First drive and safety
 
@@ -202,6 +254,13 @@ node --test tests/test_car_ui.mjs
 ```
 
 These tests simulate serial output and cannot replace a physical driving test.
+
+The Android app has its own unit tests:
+
+```sh
+cd android
+./gradlew testDebugUnitTest lintDebug
+```
 
 To rebuild an installation release from its exact committed source:
 

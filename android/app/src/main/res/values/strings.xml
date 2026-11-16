@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Wyze Car</string>
+    <string name="setup_title">Connect to your camera</string>
+    <string name="setup_text">Enter the address of the Thingino camera on your Wyze Car. The Car controller must already be installed on the camera, and this phone must be on the same network.</string>
+    <string name="setup_hint" translatable="false">192.168.1.123</string>
+    <string name="setup_connect">Connect</string>
+    <string name="setup_invalid">Enter an IP address or host name, for example 192.168.1.123.</string>
+    <string name="setup_footer">Press Back while driving for the menu. Start in a clear area and try Slow first.</string>
+    <string name="error_title">Cannot reach the controller</string>
+    <string name="error_generic">%1$s did not respond (%2$s). Check that the camera is powered and that this phone is on the same Wi-Fi network.</string>
+    <string name="error_not_installed">The camera at %1$s answered, but the Car controller is not installed on it (HTTP 404). Install it from a computer first; see the project README.</string>
+    <string name="error_retry">Try again</string>
+    <string name="error_change">Change address</string>
+    <string name="open_controller">Open Car controller</string>
+    <string name="menu_reload">Reload controller</string>
+    <string name="menu_change">Change camera address</string>
+    <string name="menu_thingino">Open Thingino web interface</string>
+    <string name="menu_exit">Exit</string>
+    <string name="auth_title">Sign in to Thingino</string>
+    <string name="auth_user">User name</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_sign_in">Sign in</string>
+    <string name="cancel">Cancel</string>
+</resources>
