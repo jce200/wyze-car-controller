@@ -149,10 +149,45 @@ cd android
 The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`.
 Copy it to the phone and open it, allowing installation from that source when
 Android asks. Debug builds from different machines are signed with different
-keys; uninstall the old app before installing one built elsewhere. For a
-release build signed with your own key, set `WYZE_CAR_KEYSTORE`,
-`WYZE_CAR_KEYSTORE_PASSWORD`, `WYZE_CAR_KEY_ALIAS`, and `WYZE_CAR_KEY_PASSWORD`
-and run `./gradlew assembleRelease`.
+keys; uninstall the old app before installing one built elsewhere.
+
+### Signed release build
+
+A release build signed with your own key is smaller and can be updated in
+place, because every build carries the same signature. Create a keystore once
+and keep it and its password somewhere safe; a lost key cannot be replaced, and
+apps signed with a new key will not install over the old one.
+
+```sh
+keytool -genkeypair -v -storetype PKCS12 -keystore wyze-car-release.p12 \
+  -alias wyze-car -keyalg RSA -keysize 4096 -validity 10000 \
+  -dname "CN=Wyze Car Controller"
+```
+
+Never commit the keystore; `android/.gitignore` excludes `*.p12`, `*.jks`, and
+`*.keystore`. To build locally:
+
+```sh
+cd android
+export WYZE_CAR_KEYSTORE=/path/to/wyze-car-release.p12
+export WYZE_CAR_KEYSTORE_PASSWORD='your keystore password'
+export WYZE_CAR_KEY_ALIAS=wyze-car
+export WYZE_CAR_KEY_PASSWORD="$WYZE_CAR_KEYSTORE_PASSWORD"
+./gradlew assembleRelease
+```
+
+The APK is written to `android/app/build/outputs/apk/release/app-release.apk`.
+
+To let GitHub Actions build it, add three repository secrets under **Settings
+→ Secrets and variables → Actions**:
+
+- `WYZE_CAR_KEYSTORE_BASE64`: the output of `base64 -w0 wyze-car-release.p12`
+  (on macOS: `base64 -i wyze-car-release.p12`).
+- `WYZE_CAR_KEYSTORE_PASSWORD`: the keystore password.
+- `WYZE_CAR_KEY_ALIAS`: `wyze-car`.
+
+Pushes to `main` and tags starting with `v` then also produce a
+`wyze-car-android-release` artifact. Pull requests never receive the key.
 
 ## First drive and safety
 
