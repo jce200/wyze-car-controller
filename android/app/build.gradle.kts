@@ -7,6 +7,11 @@ plugins {
 // left unsigned; the debug build always uses the local debug key.
 val releaseKeystore: String? = System.getenv("WYZE_CAR_KEYSTORE")
 
+// CI sets these for signed builds: the tag as version name and an increasing
+// version code, so a newer build always installs over an older one.
+val ciVersionName: String? = System.getenv("WYZE_CAR_VERSION_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() }
+val ciVersionCode: Int? = System.getenv("WYZE_CAR_VERSION_CODE")?.toIntOrNull()?.takeIf { it > 0 }
+
 android {
     namespace = "io.github.jce200.wyzecar"
     compileSdk = 35
@@ -15,8 +20,8 @@ android {
         applicationId = "io.github.jce200.wyzecar"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = ciVersionCode ?: 1
+        versionName = ciVersionName ?: "0.1.0"
     }
 
     signingConfigs {

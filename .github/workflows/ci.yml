@@ -25,6 +25,8 @@ jobs:
   android:
     name: Android app
     runs-on: ubuntu-latest
+    outputs:
+      signed: ${{ steps.sign.outcome == 'success' }}
     env:
       # True once the signing secrets from the README are configured.
       HAS_RELEASE_KEY: ${{ secrets.WYZE_CAR_KEYSTORE_BASE64 != '' }}
@@ -47,8 +49,12 @@ jobs:
       # The signing key is only used for pushes to main and version tags,
       # never for pull requests, and only inside this one step.
       - name: Build signed release APK
+        id: sign
         if: env.HAS_RELEASE_KEY == 'true' && env.SIGN_RELEASE == 'true'
         env:
+          # Tags set the version name; the run number keeps builds upgradable.
+          WYZE_CAR_VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+          WYZE_CAR_VERSION_CODE: ${{ github.run_number }}
           KEYSTORE_BASE64: ${{ secrets.WYZE_CAR_KEYSTORE_BASE64 }}
           WYZE_CAR_KEYSTORE: ${{ runner.temp }}/wyze-car-release.p12
           WYZE_CAR_KEYSTORE_PASSWORD: ${{ secrets.WYZE_CAR_KEYSTORE_PASSWORD }}
@@ -66,3 +72,40 @@ jobs:
           name: wyze-car-android-release
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+  release:
+    name: Publish release
+    # Version tags only, after the tests passed and the APK was signed.
+    if: startsWith(github.ref, 'refs/tags/v') && needs.android.outputs.signed == 'true'
+    needs: [controller, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: wyze-car-android-release
+          path: apk
+      - name: Build the camera installation packages
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python tools/build-release.py --version "$TAG" --ref HEAD --output dist
+      - name: Attach the packages and the APK to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          apk="dist/wyze-car-controller-android-$TAG.apk"
+          mv apk/app-release.apk "$apk"
+          # One checksum file for everything attached to the release.
+          (cd dist && sha256sum "$(basename "$apk")" >> SHA256SUMS && cat SHA256SUMS)
+          # Keep a release that already exists for this tag, such as one
+          # holding the camera installer packages.
+          gh release view "$TAG" > /dev/null 2>&1 ||
+            gh release create "$TAG" --verify-tag --generate-notes --title "$TAG"
+          gh release upload "$TAG" dist/* --clobber
