@@ -170,6 +170,33 @@ h1, h2 { margin: 0; font-size: clamp(26px, 2.2vw, 35px); font-weight: 650; lette
   .joystick-wrap { height: 238px; }
   .app-footer { flex-wrap: wrap; gap: 7px; }
 }
+/* Phone held sideways: video and controls side by side, nothing to scroll. */
+@media (orientation: landscape) and (min-width: 560px) and (max-height: 520px) {
+  body { padding-bottom: 0; }
+  .app-header { min-height: 44px; padding: 4px max(14px, env(safe-area-inset-right)) 4px max(14px, env(safe-area-inset-left)); }
+  .identity { gap: 8px; }
+  .identity-mark { width: 40px; height: 36px; }
+  .product-name { font-size: 13px; }
+  .product-detail, .eyebrow, .camera-note, .safety-note, .app-footer, .axis-label, .option-copy span { display: none; }
+  .connection { font-size: 11px; }
+  .auth-banner { flex-direction: row; align-items: center; padding: 6px max(14px, env(safe-area-inset-right)) 6px max(14px, env(safe-area-inset-left)); }
+  .workspace { grid-template-columns: minmax(0, 1fr) clamp(250px, 36vw, 330px); align-items: start; gap: 16px; max-width: none; padding: 8px max(14px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+  .section-line, .drive-heading { align-items: center; min-height: 24px; margin-bottom: 6px; }
+  h1, h2 { font-size: 17px; letter-spacing: -.02em; }
+  .camera-frame { width: min(100%, calc((100svh - 108px) * 16 / 9)); }
+  .camera-topline, .camera-bottomline { left: 16px; right: 16px; font-size: 8px; }
+  .camera-topline { top: 14px; }
+  .camera-bottomline { bottom: 13px; }
+  .drive-panel { max-width: none; margin: 0; }
+  .drive-controls { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "stick speed" "stick lights" "actions actions"; column-gap: 14px; padding-top: 0; }
+  .joystick-block { grid-area: stick; }
+  .joystick-wrap { height: auto; padding: 6px 0 0; }
+  .joystick { width: clamp(124px, 100svh - 216px, 176px); height: clamp(124px, 100svh - 216px, 176px); }
+  .option-row { grid-area: speed; min-height: 0; flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; border-top: 0; }
+  .lights-row { grid-area: lights; }
+  .action-stack { grid-area: actions; position: static; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin: 8px 0 0; padding: 0; border-top: 0; background: transparent; box-shadow: none; }
+  .arm-button, .stop-button { min-height: 44px; font-size: 11px; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
